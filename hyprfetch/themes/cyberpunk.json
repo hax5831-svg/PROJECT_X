@@ -1,0 +1,15 @@
+{
+  "name": "Cyberpunk",
+  "accent": "#fcee0a",
+  "secondary": "#00f0ff",
+  "background": "#07080d",
+  "card_bg": "#10121c",
+  "card_border": "#ff003c",
+  "text_primary": "#ffffff",
+  "text_secondary": "#9aa3be",
+  "success": "#00ff9f",
+  "warning": "#fcee0a",
+  "critical": "#ff003c",
+  "border_radius": 14,
+  "animation_speed": 1.2
+}

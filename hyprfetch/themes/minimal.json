@@ -1,0 +1,15 @@
+{
+  "name": "Minimal",
+  "accent": "#cbd5e1",
+  "secondary": "#64748b",
+  "background": "#0f172a",
+  "card_bg": "#1e293b",
+  "card_border": "#334155",
+  "text_primary": "#f8fafc",
+  "text_secondary": "#94a3b8",
+  "success": "#4ade80",
+  "warning": "#facc15",
+  "critical": "#f87171",
+  "border_radius": 12,
+  "animation_speed": 1.0
+}

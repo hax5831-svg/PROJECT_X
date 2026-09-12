@@ -1,0 +1,15 @@
+{
+  "name": "Arctic",
+  "accent": "#38bdf8",
+  "secondary": "#818cf8",
+  "background": "#0a0f18",
+  "card_bg": "#101826",
+  "card_border": "#21324c",
+  "text_primary": "#f0f9ff",
+  "text_secondary": "#7ea2c6",
+  "success": "#34d399",
+  "warning": "#fbbf24",
+  "critical": "#f87171",
+  "border_radius": 14,
+  "animation_speed": 1.0
+}

@@ -1,0 +1,15 @@
+{
+  "name": "Nebula",
+  "accent": "#ff2a4b",
+  "secondary": "#a855f7",
+  "background": "#0d0a14",
+  "card_bg": "#171224",
+  "card_border": "#31264a",
+  "text_primary": "#ffffff",
+  "text_secondary": "#a199b5",
+  "success": "#10b981",
+  "warning": "#f59e0b",
+  "critical": "#ef4444",
+  "border_radius": 14,
+  "animation_speed": 1.0
+}

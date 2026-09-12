@@ -1,0 +1,15 @@
+{
+  "name": "Nova",
+  "accent": "#ff007f",
+  "secondary": "#00f0ff",
+  "background": "#0b0c10",
+  "card_bg": "#12141d",
+  "card_border": "#282c3f",
+  "text_primary": "#ffffff",
+  "text_secondary": "#8f9cb5",
+  "success": "#00ff9f",
+  "warning": "#ffbe0b",
+  "critical": "#ff0055",
+  "border_radius": 14,
+  "animation_speed": 1.0
+}

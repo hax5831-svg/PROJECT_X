@@ -1,0 +1,15 @@
+{
+  "name": "Matrix",
+  "accent": "#00ff41",
+  "secondary": "#008f11",
+  "background": "#050d08",
+  "card_bg": "#0c1a10",
+  "card_border": "#1b3823",
+  "text_primary": "#e6ffed",
+  "text_secondary": "#57a36c",
+  "success": "#00ff41",
+  "warning": "#eab308",
+  "critical": "#ef4444",
+  "border_radius": 10,
+  "animation_speed": 1.0
+}

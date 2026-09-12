@@ -1,0 +1,15 @@
+{
+  "name": "AMOLED",
+  "accent": "#bf5af2",
+  "secondary": "#5e5ce6",
+  "background": "#000000",
+  "card_bg": "#09090b",
+  "card_border": "#27272a",
+  "text_primary": "#ffffff",
+  "text_secondary": "#a1a1aa",
+  "success": "#30d158",
+  "warning": "#ffd60a",
+  "critical": "#ff453a",
+  "border_radius": 16,
+  "animation_speed": 1.0
+}
