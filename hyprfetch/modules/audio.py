@@ -2,7 +2,8 @@
 
 import re
 import shutil
-import subprocess
+
+from hyprfetch.core.shell import run_action, run_query, run_query_raw
 
 
 class AudioManager:
@@ -17,83 +18,34 @@ class AudioManager:
         muted = False
 
         if self.has_wpctl:
-            try:
-                res = subprocess.run(
-                    ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"],
-                    capture_output=True,
-                    text=True,
-                    timeout=1.0,
-                )
-                if res.returncode == 0:
-                    text = res.stdout.strip()
-                    muted = "[MUTED]" in text
-                    m = re.search(r"Volume:\s*([\d\.]+)", text)
-                    if m:
-                        vol = int(round(float(m.group(1)) * 100))
-            except Exception:
-                pass
+            out = run_query(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"], timeout=1.0)
+            if out is not None:
+                muted = "[MUTED]" in out
+                m = re.search(r"Volume:\s*([\d\.]+)", out)
+                if m:
+                    vol = int(round(float(m.group(1)) * 100))
         elif self.has_pactl:
-            try:
-                res = subprocess.run(
-                    ["pactl", "get-sink-volume", "@DEFAULT_SINK@"],
-                    capture_output=True,
-                    text=True,
-                    timeout=1.0,
-                )
-                if res.returncode == 0:
-                    m = re.search(r"(\d+)%", res.stdout)
-                    if m:
-                        vol = int(m.group(1))
-            except Exception:
-                pass
+            out = run_query(["pactl", "get-sink-volume", "@DEFAULT_SINK@"], timeout=1.0)
+            if out is not None:
+                m = re.search(r"(\d+)%", out)
+                if m:
+                    vol = int(m.group(1))
 
         return {"volume": min(100, max(0, vol)), "muted": muted}
 
     def set_volume(self, pct: int) -> bool:
         pct = max(0, min(100, pct))
         if self.has_wpctl:
-            try:
-                subprocess.run(
-                    ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{pct}%"],
-                    check=False,
-                    timeout=1.0,
-                )
-                return True
-            except Exception:
-                return False
+            return run_action(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{pct}%"], timeout=1.0)
         elif self.has_pactl:
-            try:
-                subprocess.run(
-                    ["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{pct}%"],
-                    check=False,
-                    timeout=1.0,
-                )
-                return True
-            except Exception:
-                return False
+            return run_action(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{pct}%"], timeout=1.0)
         return False
 
     def toggle_mute(self) -> bool:
         if self.has_wpctl:
-            try:
-                subprocess.run(
-                    ["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"],
-                    check=False,
-                    timeout=1.0,
-                )
-                return True
-            except Exception:
-                return False
+            return run_action(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"], timeout=1.0)
         elif self.has_pactl:
-            try:
-                subprocess.run(
-                    ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"],
-                    check=False,
-                    timeout=1.0,
-                )
-                return True
-            except Exception:
-                return False
+            return run_action(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"], timeout=1.0)
         return False
 
     def get_sinks(self) -> list[dict]:
@@ -101,11 +53,11 @@ class AudioManager:
         if not self.has_wpctl:
             return sinks
 
-        try:
-            res = subprocess.run(["wpctl", "status"], capture_output=True, text=True, timeout=1.5)
-            if res.returncode != 0:
-                return sinks
+        res = run_query_raw(["wpctl", "status"], timeout=1.5)
+        if res is None or res.returncode != 0:
+            return sinks
 
+        try:
             in_sinks = False
             for line in res.stdout.splitlines():
                 if "Sinks:" in line:
@@ -151,8 +103,4 @@ class AudioManager:
     def set_sink(self, sink_id: int) -> bool:
         if not self.has_wpctl:
             return False
-        try:
-            subprocess.run(["wpctl", "set-default", str(sink_id)], check=False, timeout=1.0)
-            return True
-        except Exception:
-            return False
+        return run_action(["wpctl", "set-default", str(sink_id)], timeout=1.0)

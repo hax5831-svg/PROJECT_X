@@ -4,7 +4,7 @@ import glob
 import os
 import re
 import shutil
-import subprocess
+from hyprfetch.core.shell import run_query
 from hyprfetch.core.system import TimeSeriesBuffer
 
 
@@ -89,9 +89,9 @@ class BatteryMonitor:
 
     def _read_upower(self) -> dict:
         try:
-            res = subprocess.run(["upower", "-e"], capture_output=True, text=True, timeout=1.5)
+            devices = run_query(["upower", "-e"], timeout=1.5) or ""
             bat_dev = None
-            for line in res.stdout.splitlines():
+            for line in devices.splitlines():
                 if "BAT" in line:
                     bat_dev = line.strip()
                     break
@@ -99,7 +99,7 @@ class BatteryMonitor:
             if not bat_dev:
                 return {"present": False, "percent": 0.0, "state": "No battery", "health": 0.0, "power_w": 0.0, "display": "No battery"}
 
-            info = subprocess.run(["upower", "-i", bat_dev], capture_output=True, text=True, timeout=1.5).stdout
+            info = run_query(["upower", "-i", bat_dev], timeout=1.5) or ""
 
             pct = 0.0
             state = "Unknown"

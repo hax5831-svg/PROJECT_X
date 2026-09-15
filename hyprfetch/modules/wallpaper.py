@@ -4,7 +4,8 @@ import glob
 import os
 import random
 import shutil
-import subprocess
+
+from hyprfetch.core.shell import run_action, run_query_raw
 
 
 class WallpaperManager:
@@ -42,30 +43,19 @@ class WallpaperManager:
             return False
 
         # Try hyprctl hyprpaper
-        try:
-            res = subprocess.run(["hyprctl", "hyprpaper", "listloaded"], capture_output=True, text=True, timeout=1.0)
-            if res.returncode == 0:
-                subprocess.run(["hyprctl", "hyprpaper", "preload", path], check=False, timeout=1.5)
-                subprocess.run(["hyprctl", "hyprpaper", "wallpaper", f",{path}"], check=False, timeout=1.5)
-                return True
-        except Exception:
-            pass
+        res = run_query_raw(["hyprctl", "hyprpaper", "listloaded"], timeout=1.0)
+        if res is not None and res.returncode == 0:
+            run_action(["hyprctl", "hyprpaper", "preload", path], timeout=1.5)
+            run_action(["hyprctl", "hyprpaper", "wallpaper", f",{path}"], timeout=1.5)
+            return True
 
         # Try swww
-        if self.has_swww:
-            try:
-                subprocess.run(["swww", "img", path, "--transition-type", "wipe"], check=False, timeout=1.5)
-                return True
-            except Exception:
-                pass
+        if self.has_swww and run_action(["swww", "img", path, "--transition-type", "wipe"], timeout=1.5):
+            return True
 
         # Try feh fallback
-        if shutil.which("feh"):
-            try:
-                subprocess.run(["feh", "--bg-fill", path], check=False, timeout=1.5)
-                return True
-            except Exception:
-                pass
+        if shutil.which("feh") and run_action(["feh", "--bg-fill", path], timeout=1.5):
+            return True
 
         return False
 

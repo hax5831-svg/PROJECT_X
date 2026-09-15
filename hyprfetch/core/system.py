@@ -2,7 +2,6 @@
 
 import os
 import platform
-import subprocess
 import time
 from collections import deque
 

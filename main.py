@@ -13,7 +13,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from hyprfetch.bench.benchmark import BenchmarkEngine
 from hyprfetch.core import HyprFetchCore
+from hyprfetch.core import gpu_info
 from hyprfetch.diagnose.engine import DiagnosticEngine
+from hyprfetch.diagnose.selftest import run_self_test
 from hyprfetch.themes.theme_engine import ThemeEngine
 
 
@@ -28,6 +30,8 @@ Modes:
   hyprfetch --tui           Launch animated Neofetch-style terminal monitor
   hyprfetch --json          Print full JSON snapshot (for Waybar / scripts)
   hyprfetch --bench         Run CPU, GPU, RAM, Disk benchmark suite
+  hyprfetch --gpu-info      Show detailed GPU information and exit
+  hyprfetch --self-test     Check HyprFetch's own dependencies/subsystems
   hyprfetch --diagnose      Run "What the hell is happening?" diagnostic scan
   hyprfetch --theme <name>  Select theme (nova, nebula, cyberpunk, matrix, arctic, amoled, minimal)
 """,
@@ -37,7 +41,9 @@ Modes:
     parser.add_argument("--tui", "--cli", action="store_true", help="Launch terminal TUI monitor")
     parser.add_argument("--json", "--api", action="store_true", help="Output machine telemetry as JSON")
     parser.add_argument("--bench", action="store_true", help="Run benchmark mode and exit")
-    parser.add_argument("--diagnose", action="store_true", help="Run diagnostic anomaly scan and exit")
+    parser.add_argument("--gpu-info", action="store_true", help="Show detailed GPU information and exit")
+    parser.add_argument("--self-test", action="store_true", help="Check HyprFetch's own dependencies/subsystems and exit")
+    parser.add_argument("--diagnose", "--diag", action="store_true", help="Run diagnostic anomaly scan and exit")
     parser.add_argument("--theme", type=str, default=None, help="Theme name (nova, nebula, cyberpunk, matrix, etc.)")
     parser.add_argument("-v", "--version", action="store_true", help="Show version")
 
@@ -72,6 +78,63 @@ Modes:
         print(f"{palette['bold']}GPU:{palette['reset']}   {res['gpu']['display']} ({res['gpu']['model']})")
         print(f"\n{palette['bold']}{palette['accent']}SYSTEM SCORE: {res['system_score']} / 100{palette['reset']}")
         print(f"{palette['dim']}Saved to ~/.local/share/hyprfetch/benchmarks/{palette['reset']}")
+        sys.exit(0)
+
+    # GPU Info CLI Mode
+    if getattr(args, "gpu_info", False):
+        palette = theme_engine.active_theme.get_terminal_palette()
+        print(f"{palette['bold']}{palette['accent']}=== GPU INFORMATION ==={palette['reset']}\n")
+        gpus = gpu_info.list_gpus()
+        if not gpus:
+            print(f"{palette['warning']}No GPU detected on this system.{palette['reset']}")
+        else:
+            cuda = gpu_info.cuda_status()
+            for g in gpus:
+                print(f"{palette['bold']}GPU {g.index}{palette['reset']}")
+                print(f"  Name: {g.name}")
+                print(f"  Vendor: {g.vendor}")
+                print(f"  Type: {g.type.capitalize()}")
+                if g.detection_source == "nvidia-smi":
+                    print(f"  VRAM: {round(g.vram_used_mb)} / {round(g.vram_total_mb)} MB")
+                    print(f"  Utilization: {round(g.utilization_percent)}%")
+                    print(f"  Temperature: {round(g.temperature_c)}\u00b0C")
+                    print(f"  Power: {round(g.power_draw_w, 1)} W / {round(g.power_limit_w, 1)} W")
+                    print(f"  Driver: {g.driver or 'Unknown'}")
+                    print(f"  Compute Capability: {g.compute_capability or 'Unknown'}")
+                    print(f"  CUDA (driver max): {gpu_info.nvidia_cuda_driver_version() or 'Unknown'}")
+                    print(f"  CUDA (PyTorch): {'Available (' + cuda.cuda_version + ')' if cuda.cuda_available else 'Unavailable'}")
+                else:
+                    print(f"  Utilization: {round(g.utilization_percent)}%")
+                    print(f"  Temperature: {round(g.temperature_c) if g.temperature_c else 'Unknown'}\u00b0C")
+                    print("  (Detailed power/VRAM telemetry requires nvidia-smi; not applicable to this adapter)")
+                print()
+        sys.exit(0)
+
+    # Self-Test CLI Mode
+    if getattr(args, "self_test", False):
+        palette = theme_engine.active_theme.get_terminal_palette()
+        print(f"{palette['bold']}{palette['accent']}=== HYPRFETCH SELF-TEST ==={palette['reset']}\n")
+        results = run_self_test()
+        status_colors = {
+            "PASS": palette.get("secondary", palette["accent"]),
+            "WARN": palette["warning"],
+            "FAIL": palette["critical"],
+            "SKIP": palette["dim"],
+        }
+        fail_count = 0
+        for r in results:
+            color = status_colors.get(r.status, palette["reset"])
+            line = f"{color}[{r.status:4s}]{palette['reset']} {r.name}"
+            if r.detail:
+                line += f" {palette['dim']}- {r.detail}{palette['reset']}"
+            print(line)
+            if r.status == "FAIL":
+                fail_count += 1
+        print()
+        if fail_count:
+            print(f"{palette['critical']}{fail_count} check(s) FAILED.{palette['reset']}")
+            sys.exit(1)
+        print(f"{palette['secondary']}All required checks passed.{palette['reset']}")
         sys.exit(0)
 
     # Diagnostic CLI Mode

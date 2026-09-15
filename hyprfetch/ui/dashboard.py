@@ -519,7 +519,7 @@ class HyprFetchDashboard(QMainWindow):
 
         self.b_score_card = MetricCard("SYSTEM SCORE", "0 / 100")
         self.b_cpu_card = MetricCard("CPU BENCH", "-- sec")
-        self.b_gpu_card = MetricCard("GPU BENCH", "-- FPS")
+        self.b_gpu_card = MetricCard("GPU BENCH", "-- TFLOPS")
         self.b_ram_card = MetricCard("RAM BANDWIDTH", "-- GB/s")
         self.b_disk_card = MetricCard("DISK I/O", "-- GB/s")
 
@@ -569,13 +569,29 @@ class HyprFetchDashboard(QMainWindow):
         try:
             res = self.bench_engine.run_all(progress_callback=on_prog)
             score = res.get("system_score", 0)
+            components = res.get("score_breakdown", {}).get("components", {})
 
             accent = self.theme_engine.active_theme.accent
             self.b_score_card.update_metrics("RATING", score, f"{score}/100", "Normalized", accent_color=accent)
-            self.b_cpu_card.update_metrics(res["cpu"]["model"], 80, res["cpu"]["display"], "Multi-threaded")
-            self.b_gpu_card.update_metrics(res["gpu"]["model"], 75, res["gpu"]["display"], "FPS / Compute")
-            self.b_ram_card.update_metrics("Bandwidth", 70, res["ram"]["display"], "Sequential")
-            self.b_disk_card.update_metrics("NVMe / SSD", 85, res["disk"]["display"], "Sequential")
+            self.b_cpu_card.update_metrics(
+                res["cpu"]["model"], components.get("cpu") or 0, res["cpu"]["display"], "Multi-process"
+            )
+
+            gpu_res = res["gpu"]
+            if gpu_res.get("status") == "ok":
+                gpu_subtitle = gpu_res.get("device_name", gpu_res["model"])
+                gpu_stat2 = "Compute (TFLOPS)"
+            else:
+                gpu_subtitle = "Unavailable"
+                gpu_stat2 = gpu_res.get("reason", "GPU benchmark skipped")
+            self.b_gpu_card.update_metrics(gpu_subtitle, components.get("gpu") or 0, gpu_res["display"], gpu_stat2)
+
+            self.b_ram_card.update_metrics(
+                "Bandwidth", components.get("ram") or 0, res["ram"]["display"], "Write + Copy"
+            )
+            self.b_disk_card.update_metrics(
+                "NVMe / SSD", components.get("disk") or 0, res["disk"]["display"], "Sequential"
+            )
 
             self._refresh_bench_history()
         finally:
@@ -611,12 +627,14 @@ class HyprFetchDashboard(QMainWindow):
         # GPU Card
         gpu = snap["gpu"]
         if gpu["available"]:
+            vram_used_gb = gpu["vram_used_mb"] / 1024.0
+            vram_total_gb = gpu["vram_total_mb"] / 1024.0
             self.gpu_card.update_metrics(
                 gpu["short_name"],
                 gpu["utilization"],
                 f"{round(gpu['utilization'])}%",
                 f"{round(gpu['temp'])}°C  {round(gpu['power_w'], 1)}W",
-                badge=f"{round(gpu['vram_used_mb'])}MB VRAM",
+                badge=f"VRAM {vram_used_gb:.1f}/{vram_total_gb:.1f} GB",
                 accent_color=accent,
             )
         else:

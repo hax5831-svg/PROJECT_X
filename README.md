@@ -2,7 +2,7 @@
 
 A next-generation cyberpunk live system monitor, Qt GUI cyberdeck, and diagnostic companion built for Linux and Hyprland setups.
 
-Unlike static fetch tools, **HyprFetch 2.0** is powered by a unified modular telemetry core driving three synchronized interfaces: a **PySide6 / PyQt6 Cyberdeck GUI**, an animated **Terminal TUI with sparkline graphs**, and a **JSON Streaming Telemetry API** for Waybar and desktop widgets.
+Unlike static fetch tools, **HyprFetch 2.0** is powered by a unified modular telemetry core driving three synchronized interfaces: a **PyQt6 / PySide6 Cyberdeck GUI**, an animated **Terminal TUI with sparkline graphs**, and a **JSON Streaming Telemetry API** for Waybar and desktop widgets.
 
 ```
                  HYPRFETCH CORE
@@ -10,7 +10,7 @@ Unlike static fetch tools, **HyprFetch 2.0** is powered by a unified modular tel
           ┌────────────┼────────────┐
           ↓            ↓            ↓
       Terminal        GUI        API
-       TUI       PySide6/PyQt6   JSON
+       TUI       PyQt6/PySide6   JSON
           │            │            │
           └────────────┴────────────┘
                        ↓
@@ -56,13 +56,15 @@ Unlike static fetch tools, **HyprFetch 2.0** is powered by a unified modular tel
 * **Safe Mode Guidance**: Suggests safe, non-destructive shell remediation commands (e.g. `paccache -r`, `systemctl --user restart wireplumber`) with one-click copy to clipboard. **Never runs destructive commands automatically.**
 
 ### 🧪 5. "HYPRFETCH BENCH" Benchmark Suite
-* **Synthetic Performance Tests**:
-  * **CPU**: Multi-threaded cryptographic SHA-256 and prime number calculation.
-  * **GPU**: Compute throughput and frame capability rating.
-  * **RAM**: Sequential memory bandwidth measurement (GB/s).
-  * **Disk**: Sequential / random I/O read & write bandwidth test.
-* **Normalized System Score**: Calculates an overall rating (e.g., `94 / 100`).
-* **Historical Comparison**: Automatically logs benchmark runs to `~/.local/share/hyprfetch/benchmarks/` to compare performance *Today* vs *Last week* vs *After driver update*.
+* **Real, Repeatable Performance Tests** (not cosmetic score generators):
+  * **CPU**: Multi-*process* SHA-256 workload via `ProcessPoolExecutor` — avoids the GIL bottleneck of thread-based benchmarks and reports real elapsed time, worker count, and ops/sec.
+  * **GPU**: A genuine timed CUDA matmul compute benchmark (warm-up + timed iterations + `cuda.synchronize()`) reported as **TFLOPS** and ops/sec — **never labeled FPS** unless an actual graphical rendering benchmark is implemented. Requires optional PyTorch + CUDA; if unavailable, the GPU component is clearly reported as **skipped** with the reason, and its score weight is redistributed rather than faked.
+  * **RAM**: Real bulk memory write and copy bandwidth (GB/s) over a buffer sized relative to available system RAM (64–512MB), never large enough to cause memory pressure.
+  * **Disk**: Sequential write and read bandwidth reported **separately**, using a temporary file in `~/.cache/hyprfetch/` that is always cleaned up, even on failure.
+* **Normalized System Score**: Weighted composite (CPU 30% / GPU 30% / RAM 20% / Disk 20%), capped per-component at 100 and reported with a full breakdown (`score_breakdown`) in JSON/history. A component that couldn't be measured (e.g. no CUDA-capable GPU) is excluded and clearly marked, with its weight redistributed across the components that were measured — it never scores as zero or full marks.
+* **Historical Comparison**: Automatically logs benchmark runs to `~/.local/share/hyprfetch/benchmarks/` to compare performance *Today* vs *Last week* vs *After driver update*. Older benchmark result files remain loadable.
+
+> **Benchmark interpretation**: HyprFetch's benchmark is a lightweight synthetic system/compute benchmark, not a gaming or graphics FPS test. GPU results reflect FP32 matrix-multiply compute throughput on your installed CUDA backend, not in-game frame rates.
 
 ### 🎨 6. Theme Engine
 Shipped with 7 cyberpunk / neon themes, with customizable QSS stylesheets and ANSI terminal palettes:
@@ -93,7 +95,8 @@ Custom user overrides can be placed at `~/.config/hyprfetch/theme.json`:
 hyprfetch/
 ├── core/
 │   ├── system.py       # RAM, Disk, Host, Uptime, Kernel, OS, Ring Buffers
-│   ├── gpu.py          # NVIDIA (nvidia-smi) & AMD/Intel sysfs telemetry
+│   ├── gpu_info.py     # Shared GPU detection layer: NVIDIA (nvidia-smi) & Intel/AMD sysfs, optional CUDA/PyTorch status
+│   ├── gpu.py          # Live GPU telemetry polling + history (built on gpu_info.py)
 │   ├── cpu.py          # Jiffies utilization, frequency, and thermal sensors
 │   ├── battery.py      # Battery state, capacity, health, and power draw
 │   └── network.py      # Interface detection, I/O counters, download/upload rates
@@ -118,12 +121,14 @@ hyprfetch/
 │
 ├── diagnose/
 │   └── engine.py       # Diagnostic rule engine, anomaly radar, safe commands
+│   └── selftest.py     # --self-test dependency/subsystem checks (PASS/WARN/FAIL/SKIP)
 │
 ├── bench/
-│   └── benchmark.py    # Synthetic benchmarks, scoring, and history logger
+│   ├── benchmark.py    # CPU/RAM/Disk benchmarks, scoring, and history logger
+│   └── gpu_bench.py    # Real CUDA compute benchmark (optional PyTorch), honest fallback
 │
 ├── ui/
-│   ├── qt_compat.py    # Cross-toolkit PySide6 / PyQt6 abstraction layer
+│   ├── qt_compat.py    # Cross-toolkit PyQt6 / PySide6 abstraction layer (PyQt6 preferred)
 │   ├── dashboard.py    # Main cyberdeck GUI window with multi-tab layout
 │   ├── graphs.py       # RealtimeGraphWidget with glowing curves & time axis
 │   ├── gauges.py       # Circular arc gauges and segmented LED cyber-bars
@@ -142,14 +147,17 @@ hyprfetch/
 
 | Subsystem | Arch / EndeavourOS Package | Purpose |
 |---|---|---|
-| **Python** | `python` (>= 3.10) | Backend core engine |
-| **Qt Toolkit** | `python-pyqt6` or `python-pyside6` | Cyberdeck GUI application |
-| **GPU** | `nvidia-utils` (`nvidia-smi`) | NVIDIA GPU telemetry |
+| **Python** | `python` (>= 3.10) | Backend core engine (stdlib only) |
+| **Qt Toolkit** | `python-pyqt6` (preferred) or `python-pyside6` | Cyberdeck GUI application — optional, CLI/TUI/JSON work without it |
+| **GPU telemetry** | `nvidia-utils` (`nvidia-smi`) | NVIDIA GPU detection, VRAM/temp/power telemetry |
+| **GPU compute benchmark** | `python-pytorch-cuda` (PyPI: `torch`, optional) | Real CUDA compute benchmark (TFLOPS). Without it, the GPU benchmark component is skipped, not faked |
 | **Audio** | `wireplumber` or `pipewire-pulse` | Volume & sink routing |
 | **Brightness**| `brightnessctl` | Screen brightness control |
 | **Media** | `playerctl` | MPRIS media metadata & controls |
 | **Battery** | `upower` or sysfs | Battery state & health |
 | **Sensors** | `lm_sensors` (optional) | CPU thermal monitoring |
+
+Run `./hyprfetch.sh --self-test` any time to see exactly which of these are detected on your system.
 
 ---
 
@@ -185,16 +193,35 @@ Features live animated scanline ASCII logo, real-time metrics, and terminal spar
 ./hyprfetch.sh --bench
 ```
 
-### 5. Stream JSON Telemetry
+### 5. Inspect GPU Details
+```bash
+./hyprfetch.sh --gpu-info
+```
+Prints detailed per-GPU telemetry (name, VRAM, utilization, temperature, power, driver, CUDA status) without running the full benchmark. Works correctly with zero, one, or multiple GPUs, and never crashes if `nvidia-smi` is missing.
+
+### 6. Verify HyprFetch's Own Dependencies
+```bash
+./hyprfetch.sh --self-test
+```
+Checks Python version, required/optional Python modules, Qt backend, Wayland/X11, Hyprland, `nvidia-smi`, CUDA/PyTorch, audio, brightness, media, sensors, and filesystem permissions. Reports PASS/WARN/FAIL/SKIP — missing optional tools are never reported as failures.
+
+### 7. Stream JSON Telemetry
 Integrate live hardware telemetry into Waybar, Eww, or scripts:
 ```bash
 ./hyprfetch.sh --json
 ```
 
-### 6. Pure Lightweight Bash Mode
+### 8. Pure Lightweight Bash Mode
 ```bash
 ./hyprfetch.sh --bash
 ```
+
+### 9. Short Subcommands (optional)
+If typing `./hyprfetch.sh --flag` every time is annoying, install the shorthand commands once:
+```bash
+./install-shortcuts.sh
+```
+This symlinks `hyprgui`, `hyprtui`, `hyprbench`, `hyprgpu`, `hyprself`, `hyprdiag`, and `hyprjson` into `~/.local/bin` (add it to `PATH` if the script warns it isn't there yet). After that you can just run e.g. `hyprgui` or `hyprbench` from anywhere. Uninstall with `./install-shortcuts.sh --uninstall`.
 
 ---
 

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Shorthand for: hyprfetch.sh --diag
+# Auto-generated wrapper — resolves the real project root even when this
+# script is symlinked elsewhere (e.g. ~/.local/bin), so it works from any cwd.
+set -e
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
+exec "$ROOT/hyprfetch.sh" --diag "$@"

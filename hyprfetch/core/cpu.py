@@ -4,8 +4,24 @@ import glob
 import os
 import re
 import shutil
-import subprocess
+from hyprfetch.core.shell import run_query
 from hyprfetch.core.system import TimeSeriesBuffer
+
+
+def get_cpu_model_name() -> str:
+    """Read the CPU model string from /proc/cpuinfo.
+
+    Shared helper so the benchmark suite reports the same CPU name as the
+    live telemetry core instead of re-implementing detection.
+    """
+    try:
+        with open("/proc/cpuinfo", "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except Exception:
+        pass
+    return "Unknown CPU"
 
 
 class CPUMonitor:
@@ -25,16 +41,8 @@ class CPUMonitor:
         self._init_stat()
 
     def _get_cpu_info(self) -> tuple[str, str, int]:
-        name = "Unknown CPU"
+        name = get_cpu_model_name()
         cores = os.cpu_count() or 1
-        try:
-            with open("/proc/cpuinfo", "r", encoding="utf-8") as f:
-                for line in f:
-                    if line.startswith("model name"):
-                        name = line.split(":", 1)[1].strip()
-                        break
-        except Exception:
-            pass
 
         short_name = name
         short_name = re.sub(r"\(R\)|\(TM\)|Processor|CPU|13th Gen |12th Gen |14th Gen ", "", short_name)
@@ -105,17 +113,14 @@ class CPUMonitor:
         temp = 0.0
 
         if self.has_sensors:
-            try:
-                res = subprocess.run(["sensors"], capture_output=True, text=True, timeout=1.5)
-                if res.returncode == 0:
-                    # Look for Package id 0, Tctl, Tdie, Core 0, or dell_smm temp1
-                    for line in res.stdout.splitlines():
-                        m = re.search(r"(?:Package id 0|Tctl|Tdie|Core 0|temp1):\s*\+?([\d\.]+)°C", line)
-                        if m:
-                            temp = float(m.group(1))
-                            break
-            except Exception:
-                pass
+            out = run_query(["sensors"], timeout=1.5)
+            if out:
+                # Look for Package id 0, Tctl, Tdie, Core 0, or dell_smm temp1
+                for line in out.splitlines():
+                    m = re.search(r"(?:Package id 0|Tctl|Tdie|Core 0|temp1):\s*\+?([\d\.]+)°C", line)
+                    if m:
+                        temp = float(m.group(1))
+                        break
 
         if temp <= 0.0:
             # Fallback to sysfs thermal zones

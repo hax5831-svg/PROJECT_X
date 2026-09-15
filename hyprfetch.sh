@@ -5,9 +5,11 @@
 #   ./hyprfetch.sh --gui    (Launches PyQt6/PySide6 Cyberdeck GUI)
 #   ./hyprfetch.sh --tui    (Launches Python-powered TUI companion with sparklines)
 #   ./hyprfetch.sh --json   (Outputs machine telemetry JSON)
-#   ./hyprfetch.sh --bench  (Runs CPU/GPU/RAM/Disk benchmark suite)
-#   ./hyprfetch.sh --diag   (Runs automatic anomaly diagnosis)
-#   ./hyprfetch.sh --bash   (Runs standalone pure-bash animated neofetch monitor)
+#   ./hyprfetch.sh --bench      (Runs CPU/GPU/RAM/Disk benchmark suite)
+#   ./hyprfetch.sh --gpu-info   (Shows detailed GPU information)
+#   ./hyprfetch.sh --self-test  (Checks HyprFetch's own dependencies/subsystems)
+#   ./hyprfetch.sh --diag       (Runs automatic anomaly diagnosis)
+#   ./hyprfetch.sh --bash       (Runs standalone pure-bash animated neofetch monitor)
 
 set -uo pipefail
 
@@ -33,6 +35,12 @@ if [ -f "$PYTHON_ENTRY" ] && command -v python3 >/dev/null 2>&1; then
         --bench)
             exec python3 "$PYTHON_ENTRY" --bench "$@"
             ;;
+        --gpu-info)
+            exec python3 "$PYTHON_ENTRY" --gpu-info "$@"
+            ;;
+        --self-test)
+            exec python3 "$PYTHON_ENTRY" --self-test "$@"
+            ;;
         --diag|--diagnose)
             exec python3 "$PYTHON_ENTRY" --diagnose "$@"
             ;;
@@ -47,7 +55,9 @@ if [ -f "$PYTHON_ENTRY" ] && command -v python3 >/dev/null 2>&1; then
             echo "  --bash        Run pure lightweight Bash animated monitor"
             echo "  --json        Output raw system telemetry JSON"
             echo "  --bench       Run hardware performance benchmark suite"
-            echo "  --diagnose    Run 'What the hell is happening?' diagnostic scan"
+            echo "  --gpu-info    Show detailed GPU information"
+            echo "  --self-test   Check HyprFetch's own dependencies/subsystems"
+            echo "  --diagnose, --diag  Run 'What the hell is happening?' diagnostic scan"
             echo "  --theme NAME  Set theme (nova, nebula, cyberpunk, matrix, arctic, amoled, minimal)"
             echo "  --help, -h    Display this help message"
             exit 0

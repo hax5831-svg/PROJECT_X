@@ -1,8 +1,8 @@
 """Network bandwidth, traffic rates, and active interface telemetry."""
 
 import os
-import subprocess
 import time
+from hyprfetch.core.shell import run_query
 from hyprfetch.core.system import TimeSeriesBuffer
 
 
@@ -33,16 +33,13 @@ class NetworkMonitor:
             pass
 
         # Fallback to ip route
-        try:
-            res = subprocess.run(["ip", "route", "get", "1.1.1.1"], capture_output=True, text=True, timeout=1.0)
-            if res.returncode == 0:
-                words = res.stdout.split()
-                if "dev" in words:
-                    idx = words.index("dev")
-                    if idx + 1 < len(words):
-                        return words[idx + 1]
-        except Exception:
-            pass
+        out = run_query(["ip", "route", "get", "1.1.1.1"], timeout=1.0)
+        if out:
+            words = out.split()
+            if "dev" in words:
+                idx = words.index("dev")
+                if idx + 1 < len(words):
+                    return words[idx + 1]
 
         # Fallback to first non-loopback interface in /sys/class/net
         try:

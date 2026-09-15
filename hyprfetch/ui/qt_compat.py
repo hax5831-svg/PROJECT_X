@@ -1,14 +1,21 @@
-"""Cross-toolkit Qt abstraction layer supporting both PySide6 and PyQt6 seamlessly."""
+"""Cross-toolkit Qt abstraction layer supporting both PyQt6 and PySide6 seamlessly.
 
-import sys
+PyQt6 is preferred when both are installed; PySide6 is used as a fallback.
+If neither is available, this module raises ImportError (rather than calling
+sys.exit) so callers -- namely main.py's GUI launch path -- can catch it and
+fall back to the terminal TUI instead of killing the whole process.
+"""
 
 QT_API = None
 
 try:
-    import PySide6
-    from PySide6 import QtCore, QtGui, QtWidgets
-    from PySide6.QtCore import Property, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal, Slot
-    from PySide6.QtGui import (
+    import PyQt6
+    from PyQt6 import QtCore, QtGui, QtWidgets
+    from PyQt6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer
+    from PyQt6.QtCore import pyqtProperty as Property
+    from PyQt6.QtCore import pyqtSignal as Signal
+    from PyQt6.QtCore import pyqtSlot as Slot
+    from PyQt6.QtGui import (
         QAction,
         QBrush,
         QColor,
@@ -20,7 +27,7 @@ try:
         QPen,
         QPolygonF,
     )
-    from PySide6.QtWidgets import (
+    from PyQt6.QtWidgets import (
         QApplication,
         QComboBox,
         QFrame,
@@ -43,16 +50,13 @@ try:
         QVBoxLayout,
         QWidget,
     )
-    QT_API = "PySide6"
+    QT_API = "PyQt6"
 except ImportError:
     try:
-        import PyQt6
-        from PyQt6 import QtCore, QtGui, QtWidgets
-        from PyQt6.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer
-        from PyQt6.QtCore import pyqtProperty as Property
-        from PyQt6.QtCore import pyqtSignal as Signal
-        from PyQt6.QtCore import pyqtSlot as Slot
-        from PyQt6.QtGui import (
+        import PySide6
+        from PySide6 import QtCore, QtGui, QtWidgets
+        from PySide6.QtCore import Property, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal, Slot
+        from PySide6.QtGui import (
             QAction,
             QBrush,
             QColor,
@@ -64,7 +68,7 @@ except ImportError:
             QPen,
             QPolygonF,
         )
-        from PyQt6.QtWidgets import (
+        from PySide6.QtWidgets import (
             QApplication,
             QComboBox,
             QFrame,
@@ -87,10 +91,13 @@ except ImportError:
             QVBoxLayout,
             QWidget,
         )
-        QT_API = "PyQt6"
+        QT_API = "PySide6"
     except ImportError as err:
-        print(f"Error: Neither PySide6 nor PyQt6 could be found on the system. {err}", file=sys.stderr)
-        sys.exit(1)
+        raise ImportError(
+            "Neither PyQt6 nor PySide6 is installed -- GUI mode is unavailable. "
+            "Install one of them (e.g. `pip install PyQt6` or `pip install PySide6`) to use --gui. "
+            "CLI/TUI/JSON modes do not require Qt and will still work."
+        ) from err
 
 
 __all__ = [

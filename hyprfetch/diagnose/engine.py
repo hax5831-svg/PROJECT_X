@@ -2,7 +2,7 @@
 
 import os
 import shutil
-import subprocess
+from hyprfetch.core.shell import run_query, run_query_raw
 
 
 class DiagnosticReport:
@@ -242,70 +242,54 @@ class DiagnosticEngine:
         if not shutil.which("nvidia-smi"):
             return culprits
 
-        try:
-            cmd = ["nvidia-smi", "--query-compute-apps=pid,process_name,used_memory", "--format=csv,noheader,nounits"]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
-            if res.returncode == 0:
-                for line in res.stdout.splitlines():
-                    parts = [p.strip() for p in line.split(",")]
-                    if len(parts) >= 3:
-                        culprits.append({
-                            "pid": parts[0],
-                            "name": os.path.basename(parts[1]),
-                            "usage": f"{parts[2]} MiB VRAM",
-                        })
-        except Exception:
-            pass
+        cmd = ["nvidia-smi", "--query-compute-apps=pid,process_name,used_memory", "--format=csv,noheader,nounits"]
+        out = run_query(cmd, timeout=1.5)
+        if not out:
+            return culprits
+        for line in out.splitlines():
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) >= 3:
+                culprits.append({
+                    "pid": parts[0],
+                    "name": os.path.basename(parts[1]),
+                    "usage": f"{parts[2]} MiB VRAM",
+                })
         return culprits
 
     def _get_top_cpu_processes(self, limit: int = 5) -> list[dict]:
         culprits = []
-        try:
-            cmd = ["ps", "-eo", "pid,comm,%cpu", "--sort=-%cpu"]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
-            if res.returncode == 0:
-                for line in res.stdout.splitlines()[1 : limit + 1]:
-                    parts = line.split(None, 2)
-                    if len(parts) >= 3:
-                        culprits.append({
-                            "pid": parts[0],
-                            "name": parts[1],
-                            "usage": f"{parts[2]}% CPU",
-                        })
-        except Exception:
-            pass
+        out = run_query(["ps", "-eo", "pid,comm,%cpu", "--sort=-%cpu"], timeout=1.5)
+        if not out:
+            return culprits
+        for line in out.splitlines()[1 : limit + 1]:
+            parts = line.split(None, 2)
+            if len(parts) >= 3:
+                culprits.append({
+                    "pid": parts[0],
+                    "name": parts[1],
+                    "usage": f"{parts[2]}% CPU",
+                })
         return culprits
 
     def _get_top_mem_processes(self, limit: int = 5) -> list[dict]:
         culprits = []
-        try:
-            cmd = ["ps", "-eo", "pid,comm,%mem,rss", "--sort=-rss"]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=1.5)
-            if res.returncode == 0:
-                for line in res.stdout.splitlines()[1 : limit + 1]:
-                    parts = line.split(None, 3)
-                    if len(parts) >= 4:
-                        rss_mb = round(int(parts[3]) / 1024, 1)
-                        culprits.append({
-                            "pid": parts[0],
-                            "name": parts[1],
-                            "usage": f"{rss_mb} MB ({parts[2]}%)",
-                        })
-        except Exception:
-            pass
+        out = run_query(["ps", "-eo", "pid,comm,%mem,rss", "--sort=-rss"], timeout=1.5)
+        if not out:
+            return culprits
+        for line in out.splitlines()[1 : limit + 1]:
+            parts = line.split(None, 3)
+            if len(parts) >= 4:
+                rss_mb = round(int(parts[3]) / 1024, 1)
+                culprits.append({
+                    "pid": parts[0],
+                    "name": parts[1],
+                    "usage": f"{rss_mb} MB ({parts[2]}%)",
+                })
         return culprits
 
     def _check_audio_subsystem(self) -> tuple[bool, str]:
         if shutil.which("systemctl"):
-            try:
-                res = subprocess.run(
-                    ["systemctl", "--user", "is-active", "wireplumber"],
-                    capture_output=True,
-                    text=True,
-                    timeout=1.0,
-                )
-                if res.returncode != 0:
-                    return False, "WirePlumber user service is inactive or failed"
-            except Exception:
-                pass
+            res = run_query_raw(["systemctl", "--user", "is-active", "wireplumber"], timeout=1.0)
+            if res is not None and res.returncode != 0:
+                return False, "WirePlumber user service is inactive or failed"
         return True, "OK"
